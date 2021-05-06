@@ -1,0 +1,6 @@
+Test project 
+
+API_KEY_test_project = ei_da366d47b57064d7adf706eafe622661a219f2e097bc5bd9
+HMAC_key = bdef3f4e54c48a375958ca4517cdedf0
+
+

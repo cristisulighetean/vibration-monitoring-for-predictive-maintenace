@@ -1,0 +1,3 @@
+esp32_dev: AC:67:B2:38:1F:24
+esp32_lolin: 7C:9E:BD:06:69:0C
+
