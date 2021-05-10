@@ -4,6 +4,7 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <cmath>
 
 #include <FastLED.h>
 #include <Adafruit_BMP085.h>
@@ -31,7 +32,7 @@ const char* ssid = "HustleHub";
 const char* password = "clujnapoca31";
 
 // MQTT Server TODO
-IPAddress mqttServer(192, 168, 1, 106);
+IPAddress mqttServer(192, 168, 1, 5);
 const int mqttPort = 1883;
 
 // MQTT cloud server
@@ -110,12 +111,8 @@ void setup() {
   
         Serial.println("Connected");
 
-        // Start status timer
-        Serial.println("Starting timers...");
-        vTaskDelay(500 / portTICK_PERIOD_MS);
 
-        // Start timers (max block time if command queue is full)
-        xTimerStart(predict_timer, portMAX_DELAY);
+
       
       } else {
         Serial.print("Failed with state ");
@@ -129,11 +126,12 @@ void setup() {
   // Setup MPU
   initializeMPU(mpu);
 
-  // // Setup BMP TODO
-  // if(!bmp.begin())
-  // {
-  //   Serial.println("No BMP180 found!");
-  // }
+  // Setup BMP TODO
+  if(!bmp.begin())
+  {
+     Serial.println("No BMP180 found!");
+  }
+  Serial.println("BMP Sensor found!");
 
   // Set Status led to blue TODO
   // leds[0] = CRGB::Black;
@@ -141,12 +139,17 @@ void setup() {
 
   // Start timers (max block time if command queue is full)
   // Stat only if all is setup
-  xTimerStart(predict_timer, portMAX_DELAY);
+  // Serial.println("Starting timers...");
+  // vTaskDelay(500 / portTICK_PERIOD_MS);
+  // xTimerStart(predict_timer, portMAX_DELAY);
 
 }
 
 void loop() {
   client.loop();
+  // use here the timer here
+  send_status();
+  vTaskDelay(5000 / portTICK_PERIOD_MS);
 }
 
 //*****************************************************************
@@ -166,9 +169,6 @@ void send_status(void){
   /*
     Sends status message to MQTT
   */
-
-  // TODO Get BMP data 
-
   // Status led to plum while sending status TODO
   // leds[0] = CRGB::Plum;
   // FastLED.show();
@@ -176,13 +176,13 @@ void send_status(void){
   StaticJsonDocument<250> doc;
 
   // Get data from bmp TODO
-  // float temp = bmp.readTemperature();
-  // float pres = bmp.readPressure();
+  float temp = bmp.readTemperature();
+  float pres = bmp.readPressure();
 
   doc["user"] = user_name;
   doc["device"] = device_name;
-  doc["temp"] = 10;
-  doc["pressure(pa)"] = 10;
+  doc["temp"] = round(temp);
+  doc["pressure(pa)"] = round(pres);
   
 
   // Call predict function
@@ -355,4 +355,15 @@ void initializeMPU(Adafruit_MPU6050 mpu_obj){
 
   Serial.println("");
   delay(10);
+}
+
+
+float round(float var)
+{
+    // 37.66666 * 100 =3766.66
+    // 3766.66 + .5 =3767.16    for rounding off value
+    // then type cast to int so value is 3767
+    // then divided by 100 so the value converted into 37.67
+    float value = (int)(var * 100 + .5);
+    return (float)value / 100;
 }

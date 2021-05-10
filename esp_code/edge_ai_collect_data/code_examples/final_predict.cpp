@@ -8,9 +8,6 @@
 #include <FastLED.h>
 #include <Adafruit_BMP085.h>
 
-#include <Pangodream_18650_CL.h>
-#include <cmath>
-
 // JSON Library
 #define ARDUINOJSON_USE_DOUBLE 1
 #include <ArduinoJson.h>
@@ -22,29 +19,26 @@ static const BaseType_t app_cpu = 1;
 // Timer setup
 static TimerHandle_t status_timer = NULL;
 
-// Device Names
+// Device Registration
 const char* user_name = "cristianSulighetean";
 const char* device_name = "esp32_train_test";
 const char* topic_status = "cristianSulighetean/esp32_train_test/status";
 const char* topic_data = "cristianSulighetean/esp32_train_test/data";
 
-// Wifi Credentials
+// Define credentials for WIFI & MQTT
 const char* ssid = "HustleHub";
 const char* password = "clujnapoca31";
 
-// Wifi Hostname 
-const char* hostname = "Predictedge Device";
-WiFiClient espClient;
-PubSubClient client(espClient);
-
 // MQTT Server TODO
-IPAddress mqttServer(192, 168, 1, 5);
+IPAddress mqttServer(192, 168, 100, 37);
 const int mqttPort = 1883;
 
 // MQTT cloud server
 //const char* mqttUser = "yourMQTTuser";
 //const char* mqttPassword = "yourMQTTpassword";
 
+WiFiClient espClient;
+PubSubClient client(espClient);
 
 // MPU object
 Adafruit_MPU6050 mpu;
@@ -59,20 +53,14 @@ Adafruit_BMP085 bmp;
 CRGB leds[NUM_LEDS];
 
 
-// Batter Measurment
-#define ADC_PIN 36
-#define CONV_FACTOR 1.71
-#define READS 50
-Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
-
-
 // Function Headers
 void callbackMQTT(char* topic, byte* payload, unsigned int length);
 void send_status(void);
 void sampleData(unsigned int duration, unsigned int freq, const char* label);
 void statusTimerCallback(TimerHandle_t xTimer);
+//void clientTimerCallback(TimerHandle_t xTimer);
 void initializeMPU(Adafruit_MPU6050 mpu_obj);
-double get_batt_vol(void);
+uint8_t get_batt_level(void);
 
 
 void setup(void) {
@@ -101,10 +89,7 @@ void setup(void) {
   if (status_timer == NULL) 
     Serial.println("Could not create the status timer");
 
-  // Wifi Object
-  WiFi.mode(WIFI_STA);
-  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
-  WiFi.setHostname(hostname);
+  // Start WIFI connection
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
@@ -216,22 +201,24 @@ void send_status(void){
     Sends status message to MQTT
   */
 
+  // TODO Get BMP data 
+
   // Status led to plum while sending status
   leds[0] = CRGB::Plum;
   FastLED.show();
 
   StaticJsonDocument<200> doc;
 
-  // Get battery voltage
-  double bat_vol = floor((get_batt_vol() * 100) + 0.5) / 100;
+  // find battery level
+  uint8_t lvl = get_batt_level();
 
   // Get data from bmp
-  float temp = round(bmp.readTemperature());
-  float pres = round(bmp.readPressure());
+  float temp = bmp.readTemperature();
+  float pres = bmp.readPressure();
 
   doc["user"] = user_name;
   doc["device"] = device_name;
-  doc["batt_vol"] = bat_vol;
+  doc["batt_lvl"] = lvl;
   doc["temp"] = temp;
   doc["pressure(pa)"] = pres;
 
@@ -324,15 +311,17 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
 }
 
 
-double get_batt_vol(void){
+uint8_t get_batt_level(void){
   /*
   Read battery level and return an int
   Set up the sensor also when calling
   */
-  double bat_vol = floor((BL.getBatteryVolts() * 100) + 0.5) / 100;
-  Serial.println(bat_vol);
 
-  return bat_vol;
+  //TODO
+
+  uint8_t batt_lvl = 80;
+
+  return batt_lvl;
 }
 
 void initializeMPU(Adafruit_MPU6050 mpu_obj){
