@@ -31,6 +31,11 @@ const char* topic_predict = "cristianSulighetean/esp32_train_test/predict_result
 const char* ssid = "HustleHub";
 const char* password = "clujnapoca31";
 
+// Wifi Hostname 
+const char* hostname = "Predictedge Device";
+WiFiClient espClient;
+PubSubClient client(espClient);
+
 // MQTT Server TODO
 IPAddress mqttServer(192, 168, 1, 5);
 const int mqttPort = 1883;
@@ -39,9 +44,6 @@ const int mqttPort = 1883;
 //const char* mqttUser = "yourMQTTuser";
 //const char* mqttPassword = "yourMQTTpassword";
 
-WiFiClient espClient;
-PubSubClient client(espClient);
-
 // MPU object
 Adafruit_MPU6050 mpu;
 // BMP180 sensor
@@ -49,9 +51,7 @@ Adafruit_BMP085 bmp;
 
 // FastLED status TODO choose pins
 #define NUM_LEDS 1
-#define DATA_PIN 3
-#define CLOCK_PIN 13
-// Array of LED's
+#define DATA_PIN 32
 CRGB leds[NUM_LEDS];
 
 // Function headers
@@ -71,13 +71,13 @@ void setup() {
   // Start serial for debug purpose
   Serial.begin(115200);
 
-  // Setup status LED TODO
-  // FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
-  // FastLED.setBrightness(50);
+  //Setup status LED 
+  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
+  FastLED.setBrightness(150);
 
-  // Set Status led to blue TODO
-  // leds[0] = CRGB::Azure;
-  // FastLED.show();
+  //Set Status led to blue
+  leds[0] = CRGB::Azure;
+  FastLED.show();
 
   // Setup timers
   predict_timer = xTimerCreate(
@@ -91,7 +91,10 @@ void setup() {
   if (predict_timer == NULL) 
     Serial.println("Could not create the predict timer");
 
-  // Start WIFI connection
+  // Wifi Object
+  WiFi.mode(WIFI_STA);
+  WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE, INADDR_NONE);
+  WiFi.setHostname(hostname);
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
@@ -134,14 +137,8 @@ void setup() {
   Serial.println("BMP Sensor found!");
 
   // Set Status led to blue TODO
-  // leds[0] = CRGB::Black;
-  // FastLED.show();
-
-  // Start timers (max block time if command queue is full)
-  // Stat only if all is setup
-  // Serial.println("Starting timers...");
-  // vTaskDelay(500 / portTICK_PERIOD_MS);
-  // xTimerStart(predict_timer, portMAX_DELAY);
+  leds[0] = CRGB::Black;
+  FastLED.show();
 
 }
 
@@ -152,26 +149,14 @@ void loop() {
   vTaskDelay(5000 / portTICK_PERIOD_MS);
 }
 
-//*****************************************************************
-// Callbacks
-void predictTimerCallback(TimerHandle_t xTimer){
-  // Print message if timer 0 expired
-  if ((uint32_t)pvTimerGetTimerID(xTimer) == 0) {
-    // Call send status 
-    send_status();
-  }
-
-}
-
-//******************************************************************
 
 void send_status(void){
   /*
     Sends status message to MQTT
   */
   // Status led to plum while sending status TODO
-  // leds[0] = CRGB::Plum;
-  // FastLED.show();
+  leds[0] = CRGB::Red;
+  FastLED.show();
 
   StaticJsonDocument<250> doc;
 
@@ -188,9 +173,9 @@ void send_status(void){
   // Call predict function
   ei_impulse_result_t result = get_prediction();
 
-  // Switch color to Plum inside send message function TODO
-  // leds[0] = CRGB::Plum;
-  // FastLED.show();
+  // Switch color to Red inside send message function TODO
+  leds[0] = CRGB::Red;
+  FastLED.show();
   //********************************************************
   // print the predictions
     ei_printf("Predictions ");
@@ -206,7 +191,7 @@ void send_status(void){
 
 //***************************************************************
   
-  // TODO Get prediction result
+  // Get prediction result
   doc["normal"] = result.classification[0].value;
   doc["off"] = result.classification[1].value;
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
@@ -227,17 +212,17 @@ void send_status(void){
   // Topic will be username/device/status
   client.publish(topic_predict, char_array);
 
-  // Reset status TODO
-  // leds[0] = CRGB::Black;
-  // FastLED.show();
+  // Reset status 
+  leds[0] = CRGB::Black;
+  FastLED.show();
 }
 
 
 ei_impulse_result_t get_prediction(void)
 {
-  // Set status LED to green while doing a prediction TODO
-  // leds[0] = CRGB::Green;
-  // FastLED.show();
+  // Set status LED to green while doing a prediction
+  leds[0] = CRGB::Green;
+  FastLED.show();
 
   // Do Prediction
     ei_printf("Sampling...\n");
@@ -276,9 +261,9 @@ ei_impulse_result_t get_prediction(void)
         ei_printf("ERR: Failed to run classifier (%d)\n", err);
     }
 
-    // Reset status TODO
-    // leds[0] = CRGB::Black;
-    // FastLED.show();
+    // Reset status 
+    leds[0] = CRGB::Black;
+    FastLED.show();
 
 
     // Return the ei_impulse_result_t object

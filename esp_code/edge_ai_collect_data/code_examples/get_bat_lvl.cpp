@@ -1,19 +1,30 @@
 #include <Arduino.h>
 
-// Potentiometer is connected to GPIO 34 (Analog ADC1_CH6) 
-const int potPin = 36;
+#include <Pangodream_18650_CL.h>
 
-// variable for storing the potentiometer value
-int potValue = 0;
+#define ADC_PIN 36
+#define CONV_FACTOR 1.7
+#define READS 50
+
+Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
+/**
+ * If you need to change default values you can use it as
+ * Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
+ */
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
 }
 
 void loop() {
-  // Reading potentiometer value
-  potValue = analogRead(potPin);
-  Serial.println(potValue);
-  delay(500);
+  Serial.print("Value from pin: ");
+  Serial.println(analogRead(36));
+  Serial.print("Average value from pin: ");
+  Serial.println(BL.pinRead());
+  Serial.print("Volts: ");
+  Serial.println(BL.getBatteryVolts());
+  Serial.print("Charge level: ");
+  Serial.println(BL.getBatteryChargeLevel());
+  Serial.println("");
+  delay(1000);
 }

@@ -19,8 +19,11 @@
 static const BaseType_t pro_cpu = 0;
 static const BaseType_t app_cpu = 1;
 
+// Mutex for send data 
+static SemaphoreHandle_t mutex;
+
 // Timer setup
-static TimerHandle_t status_timer = NULL;
+//static TimerHandle_t status_timer = NULL;
 
 // Device Names
 const char* user_name = "cristianSulighetean";
@@ -51,13 +54,10 @@ Adafruit_MPU6050 mpu;
 // BMP180 sensor
 Adafruit_BMP085 bmp;
 
-// FastLED status TODO choose pins
+// FastLED setup
 #define NUM_LEDS 1
-#define DATA_PIN 3
-#define CLOCK_PIN 13
-// Array of LED's
+#define DATA_PIN 32
 CRGB leds[NUM_LEDS];
-
 
 // Batter Measurment
 #define ADC_PIN 36
@@ -80,26 +80,29 @@ void setup(void) {
   // Start serial for debug purpose
   Serial.begin(115200);
 
+  // Create mutex
+  mutex = xSemaphoreCreateMutex();
+
   // Setup status LED
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
-  FastLED.setBrightness(50);
+  FastLED.setBrightness(150);
 
   // Set Status led to blue
-  leds[0] = CRGB::Azure;
+  leds[0] = CRGB::Yellow;
   FastLED.show();
 
-  // Setup timers
-  status_timer = xTimerCreate(
-                      "Status timer",               // Name of timer
-                      5000 / portTICK_PERIOD_MS,    // Period of timer (in ticks)
-                      pdTRUE,                       // Auto-reload
-                      (void *)0,                    // Timer ID
-                      statusTimerCallback);         // Callback function
+  // // Setup timers
+  // status_timer = xTimerCreate(
+  //                     "Status timer",               // Name of timer
+  //                     5000 / portTICK_PERIOD_MS,    // Period of timer (in ticks)
+  //                     pdTRUE,                       // Auto-reload
+  //                     (void *)0,                    // Timer ID
+  //                     statusTimerCallback);         // Callback function
 
 
-  // Check to make sure timers were created
-  if (status_timer == NULL) 
-    Serial.println("Could not create the status timer");
+  // // Check to make sure timers were created
+  // if (status_timer == NULL) 
+  //   Serial.println("Could not create the status timer");
 
   // Wifi Object
   WiFi.mode(WIFI_STA);
@@ -126,11 +129,11 @@ void setup(void) {
         Serial.println("Connected");
 
         // Start status timer
-        Serial.println("Starting timers...");
-        vTaskDelay(500 / portTICK_PERIOD_MS);
+        //Serial.println("Starting timers...");
+        //vTaskDelay(500 / portTICK_PERIOD_MS);
 
         // Start timers (max block time if command queue is full)
-        xTimerStart(status_timer, portMAX_DELAY);
+        //xTimerStart(status_timer, portMAX_DELAY);
       
       } else {
         Serial.print("Failed with state ");
@@ -216,8 +219,8 @@ void send_status(void){
     Sends status message to MQTT
   */
 
-  // Status led to plum while sending status
-  leds[0] = CRGB::Plum;
+  // Status led to Red while sending status
+  leds[0] = CRGB::Red;
   FastLED.show();
 
   StaticJsonDocument<200> doc;
@@ -248,6 +251,7 @@ void send_status(void){
   // Reset status
   leds[0] = CRGB::Black;
   FastLED.show();
+
 }
 
 
@@ -259,6 +263,11 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
   This function samples the data and encodes it in a JSON
   As it samples the data it also adds it to the json
   */
+
+
+  // Take mutex
+  xSemaphoreTake(mutex, portMAX_DELAY);
+  Serial.println("Sending data, taking mutex!");
 
   // Status led to green while sending sample
   leds[0] = CRGB::Green;
@@ -321,6 +330,9 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
   // Reset status
   leds[0] = CRGB::Black;
   FastLED.show();
+
+  Serial.println("Data send, giving mutex!");
+  xSemaphoreGive(mutex);
 }
 
 
@@ -330,7 +342,7 @@ double get_batt_vol(void){
   Set up the sensor also when calling
   */
   double bat_vol = floor((BL.getBatteryVolts() * 100) + 0.5) / 100;
-  Serial.println(bat_vol);
+  //Serial.println(bat_vol);
 
   return bat_vol;
 }
@@ -345,48 +357,9 @@ void initializeMPU(Adafruit_MPU6050 mpu_obj){
   Serial.println("MPU6050 Found!");
 
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
-  Serial.print("Accelerometer range set to: ");
-  switch (mpu.getAccelerometerRange()) {
-  case MPU6050_RANGE_2_G:
-    Serial.println("+-2G");
-    break;
-  case MPU6050_RANGE_4_G:
-    Serial.println("+-4G");
-    break;
-  case MPU6050_RANGE_8_G:
-    Serial.println("+-8G");
-    break;
-  case MPU6050_RANGE_16_G:
-    Serial.println("+-16G");
-    break;
-  }
 
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
   Serial.print("Filter bandwidth set to: ");
-  switch (mpu.getFilterBandwidth()) {
-  case MPU6050_BAND_260_HZ:
-    Serial.println("260 Hz");
-    break;
-  case MPU6050_BAND_184_HZ:
-    Serial.println("184 Hz");
-    break;
-  case MPU6050_BAND_94_HZ:
-    Serial.println("94 Hz");
-    break;
-  case MPU6050_BAND_44_HZ:
-    Serial.println("44 Hz");
-    break;
-  case MPU6050_BAND_21_HZ:
-    Serial.println("21 Hz");
-    break;
-  case MPU6050_BAND_10_HZ:
-    Serial.println("10 Hz");
-    break;
-  case MPU6050_BAND_5_HZ:
-    Serial.println("5 Hz");
-    break;
-  }
-
   mpu.setCycleRate(MPU6050_CYCLE_40_HZ);
   Serial.print("Cycle rate set to: 40Hz");
 
