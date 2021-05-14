@@ -22,14 +22,21 @@ static const BaseType_t app_cpu = 1;
 // Mutex for send data 
 static SemaphoreHandle_t mutex;
 
-// Timer setup
-//static TimerHandle_t status_timer = NULL;
+// Queue
+static const int mqtt_queue_len = 6;
+static QueueHandle_t mqtt_queue;
+
+// MQTT message
+typedef struct mqtt_mess {
+  char *topic;
+  char *message;
+}mqtt_mess;
 
 // Device Names
 const char* user_name = "cristianSulighetean";
 const char* device_name = "esp32_train_test";
-const char* topic_status = "cristianSulighetean/esp32_train_test/status";
-const char* topic_data = "cristianSulighetean/esp32_train_test/data";
+char* topic_status = "cristianSulighetean/esp32_train_test/status";
+char* topic_data = "cristianSulighetean/esp32_train_test/data";
 
 // Wifi Credentials
 const char* ssid = "HustleHub";
@@ -44,7 +51,7 @@ PubSubClient client(espClient);
 IPAddress mqttServer(192, 168, 1, 5);
 const int mqttPort = 1883;
 
-// MQTT cloud server
+// MQTT cloud server TODO
 //const char* mqttUser = "yourMQTTuser";
 //const char* mqttPassword = "yourMQTTpassword";
 
@@ -70,7 +77,6 @@ Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
 void callbackMQTT(char* topic, byte* payload, unsigned int length);
 void send_status(void);
 void sampleData(unsigned int duration, unsigned int freq, const char* label);
-void statusTimerCallback(TimerHandle_t xTimer);
 void initializeMPU(Adafruit_MPU6050 mpu_obj);
 double get_batt_vol(void);
 
@@ -90,19 +96,6 @@ void setup(void) {
   // Set Status led to blue
   leds[0] = CRGB::Yellow;
   FastLED.show();
-
-  // // Setup timers
-  // status_timer = xTimerCreate(
-  //                     "Status timer",               // Name of timer
-  //                     5000 / portTICK_PERIOD_MS,    // Period of timer (in ticks)
-  //                     pdTRUE,                       // Auto-reload
-  //                     (void *)0,                    // Timer ID
-  //                     statusTimerCallback);         // Callback function
-
-
-  // // Check to make sure timers were created
-  // if (status_timer == NULL) 
-  //   Serial.println("Could not create the status timer");
 
   // Wifi Object
   WiFi.mode(WIFI_STA);
@@ -127,13 +120,6 @@ void setup(void) {
       if (client.connect("ESP32TestClient")) {
   
         Serial.println("Connected");
-
-        // Start status timer
-        //Serial.println("Starting timers...");
-        //vTaskDelay(500 / portTICK_PERIOD_MS);
-
-        // Start timers (max block time if command queue is full)
-        //xTimerStart(status_timer, portMAX_DELAY);
       
       } else {
         Serial.print("Failed with state ");
@@ -155,6 +141,10 @@ void setup(void) {
     Serial.println("No BMP180 found!");
   }
 
+  // Send status message on connect
+  send_status();
+       
+
   // Set Status led to blue
   leds[0] = CRGB::Black;
   FastLED.show();
@@ -163,6 +153,8 @@ void setup(void) {
 
 void loop() {
   client.loop();
+  vTaskDelay(100/portTICK_PERIOD_MS);
+
 }
 
 //*****************************************************************************
@@ -203,55 +195,46 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
 }
 
 
-void statusTimerCallback(TimerHandle_t xTimer){
-  // Print message if timer 0 expired
-  if ((uint32_t)pvTimerGetTimerID(xTimer) == 0) {
-    // Call send status 
-    send_status();
-  }
-
-}
-
 //*****************************************************************************
 
 void send_status(void){
   /*
     Sends status message to MQTT
   */
+    // Status led to Red while sending status
+    leds[0] = CRGB::Red;
+    FastLED.show();
 
-  // Status led to Red while sending status
-  leds[0] = CRGB::Red;
-  FastLED.show();
+    StaticJsonDocument<200> doc;
+    double bat_vol = 0.0;
+    float temp, pres;
+    String output;
 
-  StaticJsonDocument<200> doc;
+    // Get battery voltage
+    bat_vol = floor((get_batt_vol() * 100) + 0.5) / 100;
 
-  // Get battery voltage
-  double bat_vol = floor((get_batt_vol() * 100) + 0.5) / 100;
+    // Get data from bmp
+    temp = round(bmp.readTemperature());
+    pres = round(bmp.readPressure());
 
-  // Get data from bmp
-  float temp = round(bmp.readTemperature());
-  float pres = round(bmp.readPressure());
+    doc["user"] = user_name;
+    doc["device"] = device_name;
+    doc["batt_vol"] = bat_vol;
+    doc["temp"] = temp;
+    doc["pressure(pa)"] = pres;
 
-  doc["user"] = user_name;
-  doc["device"] = device_name;
-  doc["batt_vol"] = bat_vol;
-  doc["temp"] = temp;
-  doc["pressure(pa)"] = pres;
+    serializeJson(doc, output);
+    
+    // Convert string to char
+    char char_array[output.length() + 1];
+    strcpy(char_array, output.c_str());
 
-  String output;
-  serializeJson(doc, output);
-  
-  // Convert string to char
-  char char_array[output.length() + 1];
-  strcpy(char_array, output.c_str());
+    // Publish to mqtt
+    client.publish(topic_status, char_array);
 
-  // Topic will be username/device/status
-  client.publish(topic_status, char_array);
-
-  // Reset status
-  leds[0] = CRGB::Black;
-  FastLED.show();
-
+    // Reset status
+    leds[0] = CRGB::Black;
+    FastLED.show();
 }
 
 
@@ -264,7 +247,6 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
   As it samples the data it also adds it to the json
   */
 
-
   // Take mutex
   xSemaphoreTake(mutex, portMAX_DELAY);
   Serial.println("Sending data, taking mutex!");
@@ -275,8 +257,25 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
 
   // Setup freq and duration parameters
   unsigned int interval_ms = (1000 / (freq + 1));
-
   DynamicJsonDocument doc(ESP.getMaxAllocHeap());
+
+
+  double bat_vol = 0.0;
+  float temp, pres;
+
+  // Get battery voltage
+  bat_vol = floor((get_batt_vol() * 100) + 0.5) / 100;
+
+  // Get data from bmp
+  temp = round(bmp.readTemperature());
+  pres = round(bmp.readPressure());
+
+  // Status data
+  doc["user"] = user_name;
+  doc["device"] = device_name;
+  doc["batt_vol"] = bat_vol;
+  doc["temp"] = temp;
+  doc["pressure(pa)"] = pres;
 
   // Insert metadata
   doc["label"] = label;
@@ -308,7 +307,6 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
 
   String output;
   serializeJson(doc, output);
-  //Serial.println(output);
   
   // Convert string to char
   char char_array[output.length() + 1];
@@ -319,9 +317,8 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
   uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
   Serial.println(uxHighWaterMark);
 
-  // Call the send data function
-  Serial.println(client.publish(topic_data, char_array));
-  Serial.println("Data was send");
+  // Publish message to mqtt
+  client.publish(topic_data, char_array);
 
   // Print out free stack after send 
   uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
@@ -333,6 +330,7 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
 
   Serial.println("Data send, giving mutex!");
   xSemaphoreGive(mutex);
+
 }
 
 
