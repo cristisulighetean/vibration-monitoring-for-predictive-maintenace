@@ -22,16 +22,6 @@ static const BaseType_t app_cpu = 1;
 // Mutex for send data 
 static SemaphoreHandle_t mutex;
 
-// Queue
-static const int mqtt_queue_len = 6;
-static QueueHandle_t mqtt_queue;
-
-// MQTT message
-typedef struct mqtt_mess {
-  char *topic;
-  char *message;
-}mqtt_mess;
-
 // Device Names
 const char* user_name = "cristianSulighetean";
 const char* device_name = "esp32_train_test";
@@ -54,7 +44,6 @@ const int mqttPort = 1883;
 // MQTT cloud server TODO
 //const char* mqttUser = "yourMQTTuser";
 //const char* mqttPassword = "yourMQTTpassword";
-
 
 // MPU object
 Adafruit_MPU6050 mpu;
@@ -82,7 +71,6 @@ double get_batt_vol(void);
 
 
 void setup(void) {
-
   // Start serial for debug purpose
   Serial.begin(115200);
 
@@ -104,7 +92,7 @@ void setup(void) {
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(250);
     Serial.println("Connecting to WiFi..");
   }
   Serial.println("Connected to the WiFi network");
@@ -140,12 +128,14 @@ void setup(void) {
   {
     Serial.println("No BMP180 found!");
   }
+  Serial.println("BMP Sensor found!");
 
-  // Send status message on connect
+
+  // Send status message on client connect
   send_status();
        
 
-  // Set Status led to blue
+  // Turn off setup led
   leds[0] = CRGB::Black;
   FastLED.show();
 
@@ -232,7 +222,7 @@ void send_status(void){
     // Publish to mqtt
     client.publish(topic_status, char_array);
 
-    // Reset status
+    // Turn off status led
     leds[0] = CRGB::Black;
     FastLED.show();
 }
@@ -330,7 +320,6 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
 
   Serial.println("Data send, giving mutex!");
   xSemaphoreGive(mutex);
-
 }
 
 
@@ -346,21 +335,14 @@ double get_batt_vol(void){
 }
 
 void initializeMPU(Adafruit_MPU6050 mpu_obj){
-  // Setup of the MPU
   // Initialize MPU
   if (!mpu.begin()) {
     Serial.println("Failed to find MPU6050 chip");
     while (1);
   }
   Serial.println("MPU6050 Found!");
-
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
-
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
-  Serial.print("Filter bandwidth set to: ");
   mpu.setCycleRate(MPU6050_CYCLE_40_HZ);
-  Serial.print("Cycle rate set to: 40Hz");
-
   Serial.println("");
-  delay(10);
 }
