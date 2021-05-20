@@ -1,5 +1,5 @@
 #include "config.h"
-#include "helpers.h"
+
 
 // Function Headers
 void callbackMQTT(char* topic, byte* payload, unsigned int length);
@@ -10,9 +10,10 @@ double get_batt_vol(void);
 
 
 void setup(void) {
+#ifdef DEBUG
   // Start serial for debug purpose
   Serial.begin(115200);
-
+#endif
   // Create mutex
   mutex = xSemaphoreCreateMutex();
 
@@ -32,25 +33,32 @@ void setup(void) {
  
   while (WiFi.status() != WL_CONNECTED) {
     delay(250);
+#ifdef DEBUG
     Serial.println("Connecting to WiFi..");
+#endif
   }
+#ifdef DEBUG
   Serial.println("Connected to the WiFi network");
-  
+#endif
+
   // Connect to MQTT 
   client.setServer(mqttServer, mqttPort);
   client.setCallback(callbackMQTT);
 
   while (!client.connected()) {
+#ifdef DEBUG
       Serial.println("Connecting to MQTT...");
-
+#endif
       // Connect to client
       if (client.connect("ESP32TestClient")) {
-  
+#ifdef DEBUG  
         Serial.println("Connected");
-      
+#endif
       } else {
+#ifdef DEBUG
         Serial.print("Failed with state ");
         Serial.print(client.state());
+#endif
         delay(2000);
       }
   }
@@ -65,9 +73,15 @@ void setup(void) {
   // Setup BMP
   if(!bmp.begin())
   {
+#ifdef DEBUG
     Serial.println("No BMP180 found!");
+#endif
+
   }
+
+#ifdef DEBUG
   Serial.println("BMP Sensor found!");
+#endif
 
 
   // Send status message on client connect
@@ -90,10 +104,12 @@ void loop() {
 // Callbacks
 
 void callbackMQTT(char* topic, byte* payload, unsigned int length) {
- 
+
+#ifdef DEBUG
   Serial.print("Message arrived in topic: ");
   Serial.println(topic);
- 
+#endif 
+
   // Prepare conversion from byte to char
   char payloadString[length+1];
   memcpy(payloadString, payload, length);
@@ -104,12 +120,12 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
   DeserializationError error = deserializeJson(doc, payloadString, length+1);
 
   if (error) {
+#ifdef DEBUG
     Serial.print(F("deserializeJson() failed: "));
     Serial.println(error.f_str());
+#endif
     return;
   }
-
-  Serial.print("Message:");
   
   // Json content
   //const char* device = doc["device"]; // "esp1"
@@ -117,7 +133,6 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
   int duration = doc["duration"]; // 1
   int freq = doc["freq"]; // 100
 
-  Serial.println("Status message recieved");
 
   // Sample request data
   sampleData(duration, freq, label);
@@ -161,6 +176,10 @@ void send_status(void){
     // Publish to mqtt
     client.publish(topic_status, char_array);
 
+#ifdef DEBUG
+  Serial.println("Status message send !");
+#endif
+
     // Turn off status led
     leds[0] = CRGB::Black;
     FastLED.show();
@@ -178,7 +197,9 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
 
   // Take mutex
   xSemaphoreTake(mutex, portMAX_DELAY);
+#ifdef DEBUG
   Serial.println("Sending data, taking mutex!");
+#endif
 
   // Status led to green while sending sample
   leds[0] = CRGB::Green;
@@ -256,8 +277,10 @@ void sampleData(unsigned int duration, unsigned int freq, const char* label){
   // Reset status
   leds[0] = CRGB::Black;
   FastLED.show();
-
+#ifdef DEBUG
   Serial.println("Data send, giving mutex!");
+#endif
+  
   xSemaphoreGive(mutex);
 }
 
@@ -276,12 +299,18 @@ double get_batt_vol(void){
 void initializeMPU(Adafruit_MPU6050 mpu_obj){
   // Initialize MPU
   if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
+#ifdef DEBUG
+      Serial.println("Failed to find MPU6050 chip");
+#endif
     while (1);
   }
+
+
+#ifdef DEBUG
   Serial.println("MPU6050 Found!");
+#endif
+  
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
   mpu.setCycleRate(MPU6050_CYCLE_40_HZ);
-  Serial.println("");
 }

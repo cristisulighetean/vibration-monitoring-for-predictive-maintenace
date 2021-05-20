@@ -15,6 +15,9 @@
 #define ARDUINOJSON_USE_DOUBLE 1
 #include <ArduinoJson.h>
 
+// Uncomment for Debug purposes
+#define DEBUG
+
 // Core definitions 
 static const BaseType_t pro_cpu = 0;
 static const BaseType_t app_cpu = 1;
@@ -27,6 +30,9 @@ const char* user_name = "cristianSulighetean";
 const char* device_name = "esp32_train_test";
 char* topic_status = "cristianSulighetean/esp32_train_test/status";
 char* topic_data = "cristianSulighetean/esp32_train_test/data";
+
+// Model names
+const char* model_name = "test_ml_01";
 
 // Wifi Credentials
 const char* ssid = "HustleHub";
@@ -61,4 +67,5 @@ CRGB leds[NUM_LEDS];
 #define CONV_FACTOR 1.71
 #define READS 50
 Pangodream_18650_CL BL(ADC_PIN, CONV_FACTOR, READS);
+
 

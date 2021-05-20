@@ -15,6 +15,9 @@
 #define ARDUINOJSON_USE_DOUBLE 1
 #include <ArduinoJson.h>
 
+// Uncomment for Debug purposes
+#define DEBUG
+
 // Core definitions 
 static const BaseType_t pro_cpu = 0;
 static const BaseType_t app_cpu = 1;
@@ -23,6 +26,9 @@ static const BaseType_t app_cpu = 1;
 const char* user_name = "cristianSulighetean";
 const char* device_name = "esp32_predict_test";
 const char* topic_predict = "cristianSulighetean/esp32_train_test/predict_result";
+
+// Model name & version
+const char* model_name = "test_ml_1.0";
 
 // Define credentials for WIFI & MQTT
 const char* ssid = "HustleHub";

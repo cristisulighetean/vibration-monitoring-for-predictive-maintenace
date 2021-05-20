@@ -2,8 +2,10 @@
 
 
 void setup() {
-  // Start serial for debug purpose
+#ifdef DEBUG
   Serial.begin(115200);
+#endif
+  // Start serial for debug purpose
 
   //Setup status LED 
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
@@ -20,25 +22,32 @@ void setup() {
   WiFi.begin(ssid, password);
  
   while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
+    delay(250);
+#ifdef DEBUG
     Serial.println("Connecting to WiFi..");
+#endif
   }
+#ifdef DEBUG
   Serial.println("Connected to the WiFi network");
+#endif
   
   // Connect to MQTT 
   client.setServer(mqttServer, mqttPort);
 
   while (!client.connected()) {
+#ifdef DEBUG
       Serial.println("Connecting to MQTT...");
-
+#endif
       // Connect to client
       if (client.connect("ESP32TestClient")) {
-  
+#ifdef DEBUG  
         Serial.println("Connected");
-
+#endif
       } else {
+#ifdef DEBUG
         Serial.print("Failed with state ");
         Serial.print(client.state());
+#endif
         delay(1000);
       }
   }
@@ -49,9 +58,14 @@ void setup() {
   // Setup BMP TODO
   if(!bmp.begin())
   {
-     Serial.println("No BMP180 found!");
+#ifdef DEBUG
+    Serial.println("No BMP180 found!");
+#endif
   }
+
+#ifdef DEBUG
   Serial.println("BMP Sensor found!");
+#endif
 
   // Turn off setup led
   leds[0] = CRGB::Black;
@@ -83,6 +97,7 @@ void send_status(void){
 
   doc["user"] = user_name;
   doc["device"] = device_name;
+  doc["model_name_vers"] = model_name;
   doc["temp"] = round(temp);
   doc["pressure(pa)"] = round(pres);
   
@@ -105,7 +120,6 @@ void send_status(void){
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
     ei_printf("    anomaly score: %.3f\n", result.anomaly);
 #endif
-
 //***************************************************************
   
   // Get prediction result
@@ -141,6 +155,7 @@ ei_impulse_result_t get_prediction(void)
 
   // Do Prediction
     ei_printf("Sampling...\n");
+
 
     // Allocate a buffer here for the values we'll read from the IMU
     float buffer[EI_CLASSIFIER_DSP_INPUT_FRAME_SIZE] = { 0 };
@@ -194,21 +209,29 @@ void ei_printf(const char *format, ...) {
    va_end(args);
 
    if (r > 0) {
+#ifdef DEBUG
        Serial.write(print_buf);
+#endif
    }
 }
 
 void initializeMPU(Adafruit_MPU6050 mpu_obj){
   // Initialize MPU
   if (!mpu.begin()) {
-    Serial.println("Failed to find MPU6050 chip");
+#ifdef DEBUG
+      Serial.println("Failed to find MPU6050 chip");
+#endif
     while (1);
   }
+
+
+#ifdef DEBUG
   Serial.println("MPU6050 Found!");
+#endif
+  
   mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
   mpu.setCycleRate(MPU6050_CYCLE_40_HZ);
-  delay(10);
 }
 
 
