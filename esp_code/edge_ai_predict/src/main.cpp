@@ -77,7 +77,7 @@ void loop() {
   client.loop();
   // use here the timer here
   send_status();
-  vTaskDelay(5000 / portTICK_PERIOD_MS);
+ 
 }
 
 
@@ -88,20 +88,6 @@ void send_status(void){
   // Status led to plum while sending status TODO
   leds[0] = CRGB::Red;
   FastLED.show();
-
-  StaticJsonDocument<250> doc;
-
-  // Get data from bmp TODO
-  float temp = bmp.readTemperature();
-  float pres = bmp.readPressure();
-
-  doc["user"] = user_name;
-  doc["device"] = device_name;
-  doc["model_name_vers"] = model_name;
-  doc["temp"] = round(temp);
-  doc["pressure(pa)"] = round(pres);
-  
-
   // Call predict function
   ei_impulse_result_t result = get_prediction();
 
@@ -121,10 +107,23 @@ void send_status(void){
     ei_printf("    anomaly score: %.3f\n", result.anomaly);
 #endif
 //***************************************************************
-  
-  // Get prediction result
-  doc["normal"] = result.classification[0].value;
-  doc["off"] = result.classification[1].value;
+  // Make JSON object
+
+   StaticJsonDocument<500> doc;
+
+  // Get data from bmp 
+  float temp = bmp.readTemperature();
+  float pres = bmp.readPressure();
+
+  doc["user"] = user_name;
+  doc["device"] = device_name;
+  doc["model_name_vers"] = model_name;
+  doc["temp"] = round(temp);
+  doc["pressure(pa)"] = round(pres);
+  doc["high_speed"] = result.classification[0].value;
+  doc["low_speed"] = result.classification[1].value;
+  doc["mid_speed"] = result.classification[2].value;
+  doc["off"] = result.classification[3].value;
 #if EI_CLASSIFIER_HAS_ANOMALY == 1
     doc["anomaly_score"] = result.anomaly;
 #else
@@ -139,7 +138,7 @@ void send_status(void){
   strcpy(char_array, output.c_str());
 
   // Topic will be username/device/status
-  client.publish(topic_predict, char_array);
+   client.publish(topic_predict, char_array);
 
   // Reset status 
   leds[0] = CRGB::Black;

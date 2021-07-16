@@ -45,7 +45,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 // MQTT Server TODO
-IPAddress mqttServer(192, 168, 1, 5);
+IPAddress mqttServer(192, 168, 1, 14);
 const int mqttPort = 1883;
 
 // MQTT cloud server TODO

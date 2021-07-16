@@ -9,6 +9,7 @@ void initializeMPU(Adafruit_MPU6050 mpu_obj);
 double get_batt_vol(void);
 
 
+
 void setup(void) {
 #ifdef DEBUG
   // Start serial for debug purpose
@@ -95,8 +96,8 @@ void setup(void) {
 }
 
 void loop() {
+
   client.loop();
-  vTaskDelay(100/portTICK_PERIOD_MS);
 
 }
 
@@ -128,7 +129,7 @@ void callbackMQTT(char* topic, byte* payload, unsigned int length) {
   }
   
   // Json content
-  //const char* device = doc["device"]; // "esp1"
+  const char* device = doc["device"]; // "esp1"
   const char* label = doc["label"]; // "test_acc"
   int duration = doc["duration"]; // 1
   int freq = doc["freq"]; // 100
