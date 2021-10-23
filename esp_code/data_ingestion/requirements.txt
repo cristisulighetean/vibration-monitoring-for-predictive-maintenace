@@ -1,8 +1,0 @@
-ESP32 - WROOM small module
-	MAC_Address: 
-	DeviceName: espWroom
-
-
-ESP32 - Lolin32
-	MAC_Address: 
-	DeviceName: lolin32
