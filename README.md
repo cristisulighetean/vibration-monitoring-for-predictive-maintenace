@@ -1,3 +1,4 @@
-# vibration_monitoring_pred_maintenance_thesis
+# Vibration monitoring for Predictive Maintenance
+
 
 
